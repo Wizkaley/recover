@@ -22,15 +22,15 @@ import (
 func main() {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/panic", panicDemo)
-	mux.HandleFunc("/debug", renderSourceCode)
-	mux.HandleFunc("/panic-after", panicAfterDemo)
+	mux.HandleFunc("/panic", PanicDemo)
+	mux.HandleFunc("/debug", RenderSourceCode)
+	mux.HandleFunc("/panic-after", PanicAfterDemo)
 	mux.HandleFunc("/", hello)
-	log.Fatal(http.ListenAndServe(":3000", recoverMw(mux, true)))
+	log.Fatal(http.ListenAndServe(":3000", RecoverMw(mux, true)))
 
 }
 
-func renderSourceCode(w http.ResponseWriter, r *http.Request) {
+func RenderSourceCode(w http.ResponseWriter, r *http.Request) {
 	path := r.FormValue("path")
 	//path := "/home/wiz/go/src/github.com/Wizkaley/recover/main.go"
 	l := r.FormValue("line")
@@ -83,7 +83,7 @@ func renderSourceCode(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, file)
 }
 
-func recoverMw(app http.Handler, dev bool) http.HandlerFunc {
+func RecoverMw(app http.Handler, dev bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			err := recover()
@@ -95,7 +95,7 @@ func recoverMw(app http.Handler, dev bool) http.HandlerFunc {
 					http.Error(w, "Something Went Wrong :| ", http.StatusInternalServerError)
 				}
 
-				fmt.Fprintf(w, "<h1>Panic : %v </h1><pre>Trace : %v</pre>", err, makeLinks(string(stack)))
+				fmt.Fprintf(w, "<h1>Panic : %v </h1><pre>Trace : %v</pre>", err, MakeLinks(string(stack)))
 			}
 		}()
 
@@ -103,7 +103,7 @@ func recoverMw(app http.Handler, dev bool) http.HandlerFunc {
 	}
 }
 
-func makeLinks(stack string) string {
+func MakeLinks(stack string) string {
 	lines := strings.Split(stack, "\n")
 
 	for li, line := range lines {
@@ -134,16 +134,16 @@ func makeLinks(stack string) string {
 	return strings.Join(lines, "\n")
 }
 
-func panicDemo(w http.ResponseWriter, r *http.Request) {
-	funcThatPanics()
+func PanicDemo(w http.ResponseWriter, r *http.Request) {
+	FuncThatPanics()
 }
 
-func panicAfterDemo(w http.ResponseWriter, r *http.Request) {
+func PanicAfterDemo(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "<html>Hello!</html>")
-	funcThatPanics()
+	FuncThatPanics()
 }
 
-func funcThatPanics() {
+func FuncThatPanics() {
 	panic("Oh no!")
 }
 
