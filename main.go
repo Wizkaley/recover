@@ -19,17 +19,32 @@ import (
 	"github.com/alecthomas/chroma/formatters/html"
 )
 
+var (
+	// IOCopy is a variable in which the io.Copy signature is stored
+	IOCopy   = io.Copy
+	lexersgo = lexers.Get("go")
+	// LexerTokenise is a variable in which the lexers.Get("go") funtion signature is stored
+	LexerTokenise = lexersgo.Tokenise
+)
+
 func main() {
+	m := Controller()
+	log.Fatal(http.ListenAndServe(":3000", RecoverMw(m, true)))
+}
+
+// Controller Handles the Requests
+func Controller() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/panic", PanicDemo)
 	mux.HandleFunc("/debug", RenderSourceCode)
 	mux.HandleFunc("/panic-after", PanicAfterDemo)
-	mux.HandleFunc("/", hello)
-	log.Fatal(http.ListenAndServe(":3000", RecoverMw(mux, true)))
+
+	return mux
 
 }
 
+// RenderSourceCode ...
 func RenderSourceCode(w http.ResponseWriter, r *http.Request) {
 	path := r.FormValue("path")
 	//path := "/home/wiz/go/src/github.com/Wizkaley/recover/main.go"
@@ -41,16 +56,16 @@ func RenderSourceCode(w http.ResponseWriter, r *http.Request) {
 
 	file, err := os.Open(path)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	b := bytes.NewBuffer(nil)
 
-	_, err = io.Copy(b, file)
+	_, err = IOCopy(b, file)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -61,13 +76,18 @@ func RenderSourceCode(w http.ResponseWriter, r *http.Request) {
 	if line > 0 {
 		lines = append(lines, [2]int{line, line})
 	}
-	lexer := lexers.Get("go")
-	iterator, err := lexer.Tokenise(nil, b.String())
+	//exer := LexerTokenise
+	iterator, err := LexerTokenise(nil, b.String())
+
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 
 	style := styles.Get("github")
-	if style == nil {
-		style = styles.Fallback
-	}
+	// if style == nil {
+	// 	style = styles.Fallback
+	// }
 
 	formatter := html.New(html.TabWidth(2), html.HighlightLines(lines), html.WithLineNumbers())
 	w.Header().Set("Content-Type", "text/html")
@@ -83,6 +103,7 @@ func RenderSourceCode(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, file)
 }
 
+// RecoverMw ...
 func RecoverMw(app http.Handler, dev bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -103,6 +124,7 @@ func RecoverMw(app http.Handler, dev bool) http.HandlerFunc {
 	}
 }
 
+// MakeLinks ...
 func MakeLinks(stack string) string {
 	lines := strings.Split(stack, "\n")
 
@@ -145,8 +167,4 @@ func PanicAfterDemo(w http.ResponseWriter, r *http.Request) {
 
 func FuncThatPanics() {
 	panic("Oh no!")
-}
-
-func hello(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "<h1>Hello!</h1>")
 }
